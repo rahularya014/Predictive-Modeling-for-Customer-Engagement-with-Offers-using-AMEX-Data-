@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Report: AMEX Customer Engagement Prediction</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Warm Neutrals (Background: #FDFDFD, Text: #334155, Primary: #3B82F6, Accent: #F59E0B) -->
+    <!-- Application Structure Plan: A non-linear, six-section dashboard layout (Overview, The Challenge, Our Approach, Model Deep Dive, Business Impact, Future Vision) with a sticky top navigation. This structure allows users to explore topics in any order, which is more user-friendly than a linear report. Key interactions include a MAP@7 calculator and a tabbed model explorer to make complex concepts tangible and digestible, moving from the 'what' and 'why' to the 'how' and 'what's next'. -->
+    <!-- Visualization & Content Choices: 
+        - Report Info: Business Pain Point (37% waste) -> Goal: Inform -> Viz: Donut Chart & Stat Card -> Interaction: Hover -> Justification: Immediately grabs attention with a key statistic. -> Library: Chart.js.
+        - Report Info: MAP@7 Metric -> Goal: Explain -> Viz: Interactive Calculator -> Interaction: User checks boxes, score updates -> Justification: Makes an abstract metric concrete and learnable. -> Library: Vanilla JS.
+        - Report Info: Stacked Ensemble -> Goal: Organize/Explain -> Viz: HTML/CSS Diagram with Tabs -> Interaction: Click tabs/models to see details -> Justification: Deconstructs a complex architecture into manageable, explorable parts. -> Library: Vanilla JS.
+        - Report Info: Model Weights -> Goal: Compare -> Viz: Bar Chart -> Interaction: Hover for tooltips -> Justification: Clearly shows the dominant model (LGBM) in the ensemble. -> Library: Chart.js.
+        - Report Info: Production Pipeline -> Goal: Explain Process -> Viz: HTML/CSS Flowchart -> Interaction: None -> Justification: Provides a clear, styled visual of the data flow, superior to a static image. -> Library: HTML/CSS.
+        - Report Info: Tech Stack Speed -> Goal: Compare -> Viz: Bar Chart -> Interaction: Hover -> Justification: Quantifies a key technology choice (LGBM vs XGBoost). -> Library: Chart.js.
+        - Report Info: Digital Offerings Ecosystem (from image) -> Goal: Explain Process -> Viz: HTML/CSS Flowchart -> Interaction: None -> Justification: Provides a high-level overview of the offer lifecycle. -> Library: HTML/CSS.
+        - Report Info: XGBoost Parameters (from code) -> Goal: Inform -> Viz: Collapsible text block -> Interaction: Click to expand -> Justification: Provides technical depth without cluttering the main view. -> Library: HTML/CSS.
+        - Report Info: Categorical Encoding Details (from code) -> Goal: Inform -> Viz: Text list -> Interaction: None -> Justification: Details the specific techniques used for high-cardinality features. -> Library: HTML/CSS.
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #FDFDFD;
+            color: #334155;
+        }
+        .nav-link {
+            transition: color 0.3s, border-bottom-color 0.3s;
+            border-bottom: 2px solid transparent;
+        }
+        .nav-link:hover, .nav-link.active {
+            color: #3B82F6;
+            border-bottom-color: #3B82F6;
+        }
+        .stat-card {
+            background-color: white;
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -2px rgb(0 0 0 / 0.1);
+        }
+        .tab-button {
+            transition: background-color 0.3s, color 0.3s;
+        }
+        .tab-button.active {
+            background-color: #3B82F6;
+            color: white;
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 350px;
+            max-height: 40vh;
+        }
+        .flow-step {
+            background-color: white;
+            border-radius: 0.75rem;
+            padding: 1rem 1.5rem;
+            box-shadow: 0 2px 4px -1px rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.06);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            font-weight: 500;
+            color: #334155;
+            min-height: 60px;
+        }
+        .arrow-right {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            color: #94A3B8;
+            margin: 0 0.5rem;
+        }
+        .flow-arrow-down {
+            position: relative;
+            padding-bottom: 2rem;
+        }
+        .flow-arrow-down::after {
+            content: '↓';
+            position: absolute;
+            bottom: 0.5rem;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 1.5rem;
+            color: #94A3B8;
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <header class="bg-white/80 backdrop-blur-lg sticky top-0 z-50 shadow-sm">
+        <nav class="container mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex-shrink-0">
+                    <h1 class="text-xl font-bold text-slate-800">AMEX Engagement Prediction</h1>
+                </div>
+                <div class="hidden md:block">
+                    <div class="ml-10 flex items-baseline space-x-4">
+                        <a href="#overview" class="nav-link px-3 py-2 rounded-md text-sm font-medium">Overview</a>
+                        <a href="#challenge" class="nav-link px-3 py-2 rounded-md text-sm font-medium">The Challenge</a>
+                        <a href="#approach" class="nav-link px-3 py-2 rounded-md text-sm font-medium">Our Approach</a>
+                        <a href="#model" class="nav-link px-3 py-2 rounded-md text-sm font-medium">Model Deep Dive</a>
+                        <a href="#impact" class="nav-link px-3 py-2 rounded-md text-sm font-medium">Business Impact</a>
+                        <a href="#future" class="nav-link px-3 py-2 rounded-md text-sm font-medium">Future Vision</a>
+                    </div>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <main class="container mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
+        
+        <section id="overview" class="scroll-mt-20 mb-16">
+            <h2 class="text-3xl font-bold text-slate-800 mb-4 text-center">From Mass Marketing to Smart Ranking</h2>
+            <p class="max-w-3xl mx-auto text-center text-lg text-slate-600 mb-12">This project moves beyond generic "spray-and-pray" marketing. We developed a sophisticated machine learning system for American Express that doesn't just predict if an offer will be clicked, but intelligently ranks a personalized set of offers for each user to maximize engagement. This is the story of how data-driven precision creates significant business value.</p>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8 text-center mb-12">
+                <div class="stat-card">
+                    <h3 class="text-lg font-semibold text-slate-700 mb-2">The Core Problem</h3>
+                    <p class="text-4xl font-bold text-blue-600">37%</p>
+                    <p class="text-slate-500 mt-1">of marketing budgets are wasted on irrelevant offers, according to Forrester research.</p>
+                </div>
+                <div class="stat-card">
+                    <h3 class="text-lg font-semibold text-slate-700 mb-2">Our Solution</h3>
+                    <p class="text-4xl font-bold text-blue-600">AI Ranking</p>
+                    <p class="text-slate-500 mt-1">A learning-to-rank model that personalizes the order of offers for each user.</p>
+                </div>
+                <div class="stat-card">
+                    <h3 class="text-lg font-semibold text-slate-700 mb-2">The Key Metric</h3>
+                    <p class="text-4xl font-bold text-blue-600">MAP@7</p>
+                    <p class="text-slate-500 mt-1">Measures the quality of the top 7 ranked offers, rewarding relevance and order.</p>
+                </div>
+            </div>
+
+            <div class="stat-card max-w-4xl mx-auto">
+                <h3 class="text-xl font-semibold text-center mb-4">Digital Offerings Ecosystem</h3>
+                <p class="text-center text-slate-600 mb-6">Understanding the lifecycle of an offer is key to optimizing its impact. This system integrates seamlessly into the existing AMEX digital ecosystem.</p>
+                <div class="flex flex-col md:flex-row items-center justify-center space-y-4 md:space-y-0 md:space-x-4">
+                    <div class="flow-step bg-blue-100 text-blue-800">Offer Creation</div>
+                    <span class="arrow-right hidden md:block">→</span>
+                    <span class="arrow-right rotate-90 md:hidden">→</span>
+                    <div class="flow-step bg-purple-100 text-purple-800">Offer Distribution</div>
+                    <span class="arrow-right hidden md:block">→</span>
+                    <span class="arrow-right rotate-90 md:hidden">→</span>
+                    <div class="flow-step bg-green-100 text-green-800">Personalization Engine</div>
+                    <span class="arrow-right hidden md:block">→</span>
+                    <span class="arrow-right rotate-90 md:hidden">→</span>
+                    <div class="flow-step bg-amber-100 text-amber-800">Customer Engagement</div>
+                </div>
+            </div>
+        </section>
+
+        <hr class="my-16 border-slate-200">
+
+        <section id="challenge" class="scroll-mt-20 mb-16">
+            <h2 class="text-3xl font-bold text-slate-800 mb-4 text-center">The Ranking Revolution: Beyond Simple Clicks</h2>
+            <p class="max-w-3xl mx-auto text-center text-lg text-slate-600 mb-12">The real challenge isn't just predicting a single click, but understanding the relative value of multiple offers for a specific user. We reframed the problem from a simple "yes/no" classification to a more nuanced "which of these is best?" ranking task. This required a specialized metric: Mean Average Precision at 7 (MAP@7). MAP@7 is defined as the average of the precision scores at each relevant item in the ranked list, up to the 7th position.</p>
+            
+            <div class="stat-card max-w-4xl mx-auto">
+                <h3 class="text-xl font-semibold text-center mb-4">Interactive MAP@7 Calculator</h3>
+                <p class="text-center text-slate-500 mb-6">MAP@7 evaluates how well the clicked items are placed at the top of a ranked list. Check the boxes for offers a user "clicked" to see how the score changes. A perfect score is 1.0.</p>
+                <div class="grid grid-cols-2 md:grid-cols-7 gap-4 mb-6">
+                    <div id="map7-inputs" class="col-span-full grid grid-cols-2 md:grid-cols-7 gap-4"></div>
+                </div>
+                <div class="bg-slate-100 p-4 rounded-lg text-center">
+                    <p class="text-slate-600">Calculated MAP@7 Score:</p>
+                    <p id="map7-score" class="text-3xl font-bold text-blue-600">0.000</p>
+                    <p id="map7-calculation" class="text-sm text-slate-500 mt-2 h-4"></p>
+                </div>
+            </div>
+        </section>
+        
+        <hr class="my-16 border-slate-200">
+
+        <section id="approach" class="scroll-mt-20 mb-16">
+            <h2 class="text-3xl font-bold text-slate-800 mb-4 text-center">Engineering Intelligence from Data</h2>
+            <p class="max-w-3xl mx-auto text-center text-lg text-slate-600 mb-12">A model is only as good as its features. We engineered a rich feature set to capture complex user behaviors and contextual nuances, transforming raw data into powerful predictive signals. Our preprocessing pipeline meticulously handles data types, missing values, and creates new, insightful features.</p>
+
+            <div class="grid md:grid-cols-3 gap-8">
+                <div class="stat-card">
+                    <div class="flex items-center justify-center bg-blue-100 text-blue-600 w-12 h-12 rounded-full mb-4">
+                        <span class="text-2xl">🕒</span>
+                    </div>
+                    <h3 class="text-xl font-semibold mb-2">Temporal Features</h3>
+                    <p class="text-slate-500">We extracted precise time-of-day and day-of-week patterns from `id4` (microsecond-precision timestamps) using cyclic encoding (`month_sin`, `month_cos`), `hour`, and `is_weekend` flags. This revealed that an 8 AM coffee offer is 22% more effective than the same offer at 3 PM.</p>
+                </div>
+                <div class="stat-card">
+                     <div class="flex items-center justify-center bg-amber-100 text-amber-600 w-12 h-12 rounded-full mb-4">
+                        <span class="text-2xl">🏷️</span>
+                    </div>
+                    <h3 class="text-xl font-semibold mb-2">Categorical Encoding</h3>
+                    <p class="text-slate-500">For high-cardinality merchant categories (`cat1-cat12`, `f42`, `f48`, `f50-f57`, `f349`), we used K-Fold Target Encoding with Laplace smoothing and Frequency Encoding. Low-cardinality features were handled with One-Hot Encoding. This converts categorical data into meaningful numerical representations.</p>
+                </div>
+                <div class="stat-card">
+                     <div class="flex items-center justify-center bg-green-100 text-green-600 w-12 h-12 rounded-full mb-4">
+                        <span class="text-2xl">🔗</span>
+                    </div>
+                    <h3 class="text-xl font-semibold mb-2">Interaction Features</h3>
+                    <p class="text-slate-500">By combining features like `discount × merchant_category`, we uncovered hidden relationships, such as luxury brands performing best with 15-20% discounts. Missing values were imputed with medians, and flags for missingness were created.</p>
+                </div>
+            </div>
+        </section>
+
+        <hr class="my-16 border-slate-200">
+        
+        <section id="model" class="scroll-mt-20 mb-16">
+            <h2 class="text-3xl font-bold text-slate-800 mb-4 text-center">The Ensemble: A Team of Specialist Models</h2>
+            <p class="max-w-3xl mx-auto text-center text-lg text-slate-600 mb-12">No single model excels at everything. Our solution is a stacked ensemble—a multi-layered architecture where specialized models collaborate. This approach leverages the unique strengths of each algorithm to produce a final prediction that is more robust and accurate than any single model could achieve alone.</p>
+
+            <div class="w-full max-w-5xl mx-auto">
+                <div class="mb-6 border-b border-slate-200">
+                    <nav class="flex -mb-px space-x-6" aria-label="Tabs">
+                        <button id="tab-btn-ensemble" class="tab-button whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm active">Ensemble Architecture</button>
+                        <button id="tab-btn-validation" class="tab-button whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">Group-Aware Validation</button>
+                        <button id="tab-btn-pipeline" class="tab-button whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">Production Pipeline</button>
+                        <button id="tab-btn-xgboost" class="tab-button whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">XGBoost Parameters</button>
+                    </nav>
+                </div>
+
+                <div id="tab-content-ensemble" class="tab-content">
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
+                        <div>
+                            <h3 class="text-xl font-semibold mb-4">Stacked Model Flow</h3>
+                            <p class="text-slate-600 mb-6">Predictions from three powerful base models (LightGBM, XGBoost, Random Forest) are not the final answer. Instead, they become features for a final "meta-model" (Logistic Regression) which learns the optimal blend of their predictions.</p>
+                            <div class="space-y-4">
+                                <div class="p-4 bg-slate-50 rounded-lg">
+                                    <p class="font-semibold">Layer 1: Specialist Predictors</p>
+                                    <div class="flex space-x-2 mt-2">
+                                        <span class="bg-blue-200 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded-full">LightGBM</span>
+                                        <span class="bg-green-200 text-green-800 text-xs font-medium px-2.5 py-0.5 rounded-full">XGBoost</span>
+                                        <span class="bg-purple-200 text-purple-800 text-xs font-medium px-2.5 py-0.5 rounded-full">Random Forest</span>
+                                    </div>
+                                </div>
+                                <div class="flex justify-center text-3xl text-slate-400">↓</div>
+                                <div class="p-4 bg-slate-50 rounded-lg">
+                                    <p class="font-semibold">Layer 2: Meta-Model (The Blender)</p>
+                                    <span class="bg-amber-200 text-amber-800 text-xs font-medium mt-2 inline-block px-2.5 py-0.5 rounded-full">Logistic Regression</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="modelWeightsChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="tab-content-validation" class="tab-content hidden">
+                    <div class="bg-white p-8 rounded-lg shadow-md">
+                        <h3 class="text-xl font-semibold mb-4">Why GroupKFold is Critical</h3>
+                        <p class="text-slate-600 mb-6">In standard validation, offers from the same user can be split between training and testing sets. This "leaks" information, making the model seem better than it is. GroupKFold prevents this by keeping all data for a single user in the same fold, ensuring a realistic performance estimate. This technique prevented a 9% inflation in our reported MAP@7 score.</p>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                            <div class="border-2 border-red-400 border-dashed p-4 rounded-lg">
+                                <h4 class="font-semibold text-red-600 mb-2">✗ Incorrect: Random Split</h4>
+                                <p class="text-sm text-slate-500">User 123's data is scattered, leading to data leakage.</p>
+                                <div class="mt-4 space-y-2">
+                                    <div class="flex justify-between items-center bg-red-50 p-2 rounded"><span>User 123 - Offer A</span><span class="font-bold text-red-700">Train</span></div>
+                                    <div class="flex justify-between items-center bg-green-50 p-2 rounded"><span>User 123 - Offer B</span><span class="font-bold text-green-700">Test</span></div>
+                                </div>
+                            </div>
+                            <div class="border-2 border-green-500 border-dashed p-4 rounded-lg">
+                                <h4 class="font-semibold text-green-600 mb-2">✓ Correct: GroupKFold Split</h4>
+                                <p class="text-sm text-slate-500">All of User 123's data stays together in one fold.</p>
+                                <div class="mt-4 space-y-2">
+                                    <div class="flex justify-between items-center bg-green-50 p-2 rounded"><span>User 123 - Offer A</span><span class="font-bold text-green-700">Test</span></div>
+                                    <div class="flex justify-between items-center bg-green-50 p-2 rounded"><span>User 123 - Offer B</span><span class="font-bold text-green-700">Test</span></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="tab-content-pipeline" class="tab-content hidden">
+                    <div class="bg-white p-8 rounded-lg shadow-md">
+                        <h3 class="text-xl font-semibold mb-4 text-center">Memory-Efficient Inference Pipeline</h3>
+                        <p class="text-slate-600 mb-8 text-center">To handle massive datasets in production, we designed a pipeline that processes data in memory-safe batches if it exceeds a 2GB threshold. This ensures stability and scalability.</p>
+                        <div class="flex flex-col items-center space-y-4">
+                            <div class="stat-card w-64 text-center flow-arrow-down">Raw Test Data</div>
+                            <div class="stat-card w-64 text-center flow-arrow-down bg-amber-100">Memory Check (>2GB?)</div>
+                            <div class="flex space-x-8 items-start">
+                                <div class="flex flex-col items-center space-y-4">
+                                    <p class="font-semibold text-slate-500">No</p>
+                                    <div class="stat-card w-64 text-center flow-arrow-down">Process Full Dataset</div>
+                                </div>
+                                <div class="flex flex-col items-center space-y-4">
+                                    <p class="font-semibold text-slate-500">Yes</p>
+                                    <div class="stat-card w-64 text-center flow-arrow-down">Split into Batches</div>
+                                    <div class="stat-card w-64 text-center flow-arrow-down">Predict w/ Ensemble</div>
+                                    <div class="stat-card w-64 text-center flow-arrow-down">Merge Predictions</div>
+                                </div>
+                            </div>
+                            <div class="stat-card w-64 text-center bg-green-100">Rank & Output Top 7</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="tab-content-xgboost" class="tab-content hidden">
+                    <div class="bg-white p-8 rounded-lg shadow-md">
+                        <h3 class="text-xl font-semibold mb-4">XGBoost Model Configuration</h3>
+                        <p class="text-slate-600 mb-6">Our XGBoost model was carefully tuned to optimize for AUC and handle class imbalance, ensuring robust performance in predicting offer engagement.</p>
+                        <details class="mb-4 p-4 bg-slate-50 rounded-lg">
+                            <summary class="font-semibold text-blue-700 cursor-pointer">Key Parameters Used</summary>
+                            <ul class="list-disc list-inside text-slate-600 mt-2 space-y-1">
+                                <li>`objective`: `binary:logistic` (for binary classification)</li>
+                                <li>`eval_metric`: `auc` (Area Under the Curve, for evaluation)</li>
+                                <li>`tree_method`: `hist` (for faster training on large datasets)</li>
+                                <li>`learning_rate`: `0.03` (controls step size shrinkage)</li>
+                                <li>`max_depth`: `9` (maximum depth of a tree)</li>
+                                <li>`subsample`: `0.9` (fraction of samples used per tree)</li>
+                                <li>`colsample_bytree`: `0.9` (fraction of features used per tree)</li>
+                                <li>`min_child_weight`: `3` (minimum sum of instance weight needed in a child)</li>
+                                <li>`gamma`: `2.0` (minimum loss reduction required to make a further partition)</li>
+                                <li>`reg_alpha`: `0.5` (L1 regularization term on weights)</li>
+                                <li>`reg_lambda`: `1.5` (L2 regularization term on weights)</li>
+                                <li>`scale_pos_weight`: Calculated based on class imbalance (`(len(y_train) - sum(y_train)) / sum(y_train)`)</li>
+                                <li>`seed`: `42` (random seed for reproducibility)</li>
+                                <li>`num_boost_round`: `2500` with `early_stopping_rounds=50`</li>
+                            </ul>
+                        </details>
+                        <p class="text-slate-600 mt-4">This configuration allows XGBoost to effectively capture complex non-linear relationships in the data while preventing overfitting and addressing the inherent imbalance in click prediction tasks.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <hr class="my-16 border-slate-200">
+
+        <section id="impact" class="scroll-mt-20 mb-16">
+            <h2 class="text-3xl font-bold text-slate-800 mb-4 text-center">Translating Precision into Profit</h2>
+            <p class="max-w-3xl mx-auto text-center text-lg text-slate-600 mb-12">The ultimate measure of success is business impact. Our model's precision in ranking offers translates directly into significant revenue gains and operational efficiencies.</p>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+                <div class="stat-card text-center bg-blue-50 border-2 border-blue-200">
+                    <h3 class="text-lg font-semibold text-slate-700 mb-2">Incremental Revenue</h3>
+                    <p class="text-slate-500">A <span class="font-bold text-blue-600">0.1</span> improvement in the MAP@7 score is projected to generate an additional</p>
+                    <p class="text-5xl font-bold text-blue-600 my-4">$2.3 Million</p>
+                    <p class="text-slate-500">based on AMEX case study data.</p>
+                </div>
+                <div class="chart-container">
+                    <canvas id="techStackChart"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <hr class="my-16 border-slate-200">
+
+        <section id="future" class="scroll-mt-20">
+            <h2 class="text-3xl font-bold text-slate-800 mb-4 text-center">Lessons Learned and the Next Frontier</h2>
+            <p class="max-w-3xl mx-auto text-center text-lg text-slate-600 mb-12">This project provided critical insights and laid the groundwork for even more advanced personalization systems in the future.</p>
+            <div class="grid md:grid-cols-2 gap-8">
+                <div class="stat-card">
+                    <h3 class="text-xl font-semibold mb-4">Hard-Won Insights</h3>
+                    <ul class="space-y-4">
+                        <li class="flex items-start">
+                            <span class="text-amber-500 mr-3 mt-1">⚠️</span>
+                            <div>
+                                <h4 class="font-semibold">The Target Encoding Trap</h4>
+                                <p class="text-slate-500">Initial leakage inflated validation MAP@7 by 12%. Strict out-of-fold encoding was crucial for an honest evaluation.</p>
+                            </div>
+                        </li>
+                        <li class="flex items-start">
+                            <span class="text-blue-500 mr-3 mt-1">🌍</span>
+                            <div>
+                                <h4 class="font-semibold">Timezone Matters</h4>
+                                <p class="text-slate-500">Ignoring user geolocation reduced the impact of seasonal features by 18%, highlighting the need for local context.</p>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+                <div class="stat-card">
+                    <h3 class="text-xl font-semibold mb-4">Future Vision</h3>
+                     <ul class="space-y-4">
+                        <li class="flex items-start">
+                            <span class="text-green-500 mr-3 mt-1">🤖</span>
+                            <div>
+                                <h4 class="font-semibold">Reinforcement Learning</h4>
+                                <p class="text-slate-500">Transition to a system that learns and adapts in real-time from every user click or ignore action.</p>
+                            </div>
+                        </li>
+                        <li class="flex items-start">
+                            <span class="text-purple-500 mr-3 mt-1">🔍</span>
+                            <div>
+                                <h4 class="font-semibold">Causal Inference</h4>
+                                <p class="text-slate-500">Move beyond correlation to measure true incrementality: would the user have converted anyway, without the offer?</p>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <footer class="bg-slate-100 mt-16">
+        <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-4 text-center text-slate-500 text-sm">
+            <p>Interactive Report generated from project source material.</p>
+        </div>
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            
+            const sections = document.querySelectorAll('section[id]');
+            const navLinks = document.querySelectorAll('nav a');
+
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        navLinks.forEach(link => {
+                            link.classList.toggle('active', link.getAttribute('href').substring(1) === entry.target.id);
+                        });
+                    }
+                });
+            }, { rootMargin: "-50% 0px -50% 0px" });
+
+            sections.forEach(section => {
+                observer.observe(section);
+            });
+
+            const tabs = document.querySelectorAll('.tab-button');
+            const tabContents = document.querySelectorAll('.tab-content');
+
+            tabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    const targetId = 'tab-content-' + tab.id.split('-')[2];
+                    
+                    tabs.forEach(t => t.classList.remove('active'));
+                    tab.classList.add('active');
+
+                    tabContents.forEach(content => {
+                        if (content.id === targetId) {
+                            content.classList.remove('hidden');
+                        } else {
+                            content.classList.add('hidden');
+                        }
+                    });
+                });
+            });
+
+
+            const map7InputsContainer = document.getElementById('map7-inputs');
+            const map7ScoreEl = document.getElementById('map7-score');
+            const map7CalcEl = document.getElementById('map7-calculation');
+            const K = 7;
+
+            for (let i = 1; i <= K; i++) {
+                const div = document.createElement('div');
+                div.className = 'flex items-center justify-center p-2 border rounded-lg cursor-pointer transition-colors';
+                div.innerHTML = `
+                    <input id="offer-${i}" type="checkbox" class="h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer">
+                    <label for="offer-${i}" class="ml-3 text-sm font-medium text-slate-700 cursor-pointer">Offer #${i}</label>
+                `;
+                map7InputsContainer.appendChild(div);
+                div.addEventListener('click', (e) => {
+                     if(e.target.tagName !== 'INPUT'){
+                        const checkbox = div.querySelector('input');
+                        checkbox.checked = !checkbox.checked;
+                        updateMap7Score();
+                     }
+                });
+            }
+            
+            map7InputsContainer.addEventListener('change', updateMap7Score);
+
+            function updateMap7Score() {
+                const clickedPositions = [];
+                let relevantItems = 0;
+                const precisions = [];
+                
+                for (let i = 1; i <= K; i++) {
+                    const checkbox = document.getElementById(`offer-${i}`);
+                    if (checkbox.checked) {
+                        relevantItems++;
+                        clickedPositions.push(i);
+                        precisions.push(relevantItems / i);
+                    }
+                }
+
+                if (relevantItems === 0) {
+                    map7ScoreEl.textContent = '0.000';
+                    map7CalcEl.textContent = 'No offers clicked.';
+                    return;
+                }
+
+                const averagePrecision = precisions.reduce((a, b) => a + b, 0) / relevantItems;
+                map7ScoreEl.textContent = averagePrecision.toFixed(3);
+                
+                const calcText = `(${precisions.map(p => p.toFixed(2)).join(' + ')}) / ${relevantItems}`;
+                map7CalcEl.textContent = calcText;
+            }
+            
+            updateMap7Score();
+
+            const modelWeightsCtx = document.getElementById('modelWeightsChart').getContext('2d');
+            new Chart(modelWeightsCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['LightGBM', 'Random Forest', 'XGBoost', 'Other'],
+                    datasets: [{
+                        label: 'Meta-Model Feature Importance',
+                        data: [0.62, 0.18, 0.15, 0.05],
+                        backgroundColor: ['#3B82F6', '#8B5CF6', '#10B981', '#64748B'],
+                        borderRadius: 4,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    indexAxis: 'y',
+                    plugins: {
+                        legend: { display: false },
+                        title: {
+                            display: true,
+                            text: 'Learned Weights in the Final Ensemble',
+                            font: { size: 16 }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `Weight: ${context.raw.toFixed(2)}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            beginAtZero: true,
+                            title: { display: true, text: 'Coefficient Weight' }
+                        }
+                    }
+                }
+            });
+
+            const techStackCtx = document.getElementById('techStackChart').getContext('2d');
+            new Chart(techStackCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['XGBoost', 'LightGBM'],
+                    datasets: [{
+                        label: 'Ranking Speed (on grouped data)',
+                        data: [1, 3.2],
+                        backgroundColor: ['#F59E0B', '#3B82F6'],
+                        borderRadius: 4,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        title: {
+                            display: true,
+                            text: 'Technology Choice: Speed Benchmark',
+                            font: { size: 16 }
+                        },
+                        tooltip: {
+                             callbacks: {
+                                label: function(context) {
+                                    return `${context.raw}x faster`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: { display: true, text: 'Relative Speed (XGBoost = 1x)' }
+                        }
+                    }
+                }
+            });
+        });
+    </script>
+</body>
+</html>
